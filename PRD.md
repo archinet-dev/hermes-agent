@@ -35,7 +35,7 @@ Core product principles:
 
 3. **Interfaces**
    - CLI app for interactive terminal sessions.
-   - Gateway service for chat platforms (Telegram, Discord, Slack, WhatsApp, Signal, Email, SMS, Matrix, Mattermost, DingTalk, Home Assistant, API/Webhook).
+   - Gateway service for chat platforms (telegram, discord, slack, whatsapp, signal, homeassistant).
    - ACP adapter for IDE/editor clients.
 
 4. **Persistence & State**
@@ -89,7 +89,7 @@ User/Platform Input → Interface Adapter → Agent Loop → LLM + Tools → Pos
 
 ---
 
-## 4) Tool System Specification (40+ tools)
+## 4) Tool System Specification (Extensive Built-in Tooling)
 
 ### 4.1 Tool Registry Model
 Each tool is registered with:
@@ -161,7 +161,7 @@ Adapters expose common lifecycle and messaging APIs:
 - parse inbound events to normalized message envelopes
 
 ### 6.3 Supported Integrations
-Telegram, Discord, Slack, WhatsApp, Signal, Email, SMS, Matrix, Mattermost, DingTalk, Home Assistant, API server, and webhook patterns.
+telegram, discord, slack, whatsapp, signal, and homeassistant.
 
 ---
 
