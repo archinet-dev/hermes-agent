@@ -197,6 +197,8 @@ Adapters expose common lifecycle and messaging APIs:
 ### 6.3 Supported Integrations
 api_server, dingtalk, discord, email, homeassistant, mattermost, matrix, signal, slack, sms, telegram, webhook, and whatsapp.
 
+Platform names above are canonical runtime identifiers (matching `Platform` enum values).
+
 ---
 
 ## 7) Configuration System
@@ -345,6 +347,7 @@ Each child returns structured summary, status, duration, usage metrics, and tool
 - **Policy-gated approval**: an approval requirement determined by configured safety/approval policy.
 - **Interactive approval**: a real-time user prompt requiring explicit user confirmation.
 - **Denied by policy**: action is blocked without an approval path in the current context.
+- **Scoped (delegation)**: restricted to parent-assigned toolsets, inherited policy constraints, and shared iteration/runtime budgets.
 
 #### Permission Matrix (Requirement-Level)
 
