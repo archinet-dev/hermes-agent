@@ -35,7 +35,7 @@ Core product principles:
 
 3. **Interfaces**
    - CLI app for interactive terminal sessions.
-   - Gateway service for chat platforms (telegram, discord, slack, whatsapp, signal, homeassistant).
+   - Gateway service for chat platforms (api_server, dingtalk, discord, email, homeassistant, mattermost, matrix, signal, slack, sms, telegram, webhook, whatsapp).
    - ACP adapter for IDE/editor clients.
 
 4. **Persistence & State**
@@ -55,6 +55,22 @@ Core product principles:
 ### 2.2 High-Level Data Plane
 
 User/Platform Input → Interface Adapter → Agent Loop → LLM + Tools → Post-processing/Persistence → Output Delivery
+
+### 2.3 System Context Diagram
+
+```mermaid
+flowchart LR
+    U[User / External Trigger] --> I[Interface Layer<br/>CLI / Gateway / ACP]
+    I --> A[Agent Runtime]
+    A --> M[Model Provider]
+    A --> T[Tool Registry + Toolsets]
+    T --> X[Execution Backends<br/>terminal / browser / code / web / mcp]
+    T -. auxiliary client calls .-> M
+    A --> P[Persistence Layer<br/>sessions / memory / config / cron]
+    P --> A
+    A --> O[Response Delivery]
+    O --> U
+```
 
 ---
 
@@ -86,6 +102,24 @@ User/Platform Input → Interface Adapter → Agent Loop → LLM + Tools → Pos
 - Structured retry policy for malformed outputs/tool arguments.
 - Interrupt propagation to running children/tools.
 - Optional fallback model routing during provider/model failures.
+
+### 3.4 Conversation Loop Diagram
+
+```mermaid
+flowchart TD
+    S[Start turn] --> B[Build prompt context]
+    B --> C{Context too large?}
+    C -- yes --> K[Compress context]
+    C -- no --> R[Request model response]
+    K --> R
+    R --> T{Tool calls returned?}
+    T -- yes --> V[Validate + execute tools]
+    V --> A[Append tool results to messages]
+    A --> R
+    T -- no --> F[Finalize assistant reply]
+    F --> P[Persist messages + usage + costs]
+    P --> E[End turn]
+```
 
 ---
 
@@ -161,7 +195,7 @@ Adapters expose common lifecycle and messaging APIs:
 - parse inbound events to normalized message envelopes
 
 ### 6.3 Supported Integrations
-telegram, discord, slack, whatsapp, signal, and homeassistant.
+api_server, dingtalk, discord, email, homeassistant, mattermost, matrix, signal, slack, sms, telegram, webhook, and whatsapp.
 
 ---
 
@@ -293,6 +327,49 @@ Each child returns structured summary, status, duration, usage metrics, and tool
 - Credential filtering and redaction in tool outputs.
 - Per-session/process isolation for long-running tasks.
 
+### 13.4 Permission and Approval Model
+
+#### Capability Domains
+- **Read-only capabilities**: list/read/search files, read session history, fetch web content.
+- **Mutating local capabilities**: file write/patch, terminal command execution, process control.
+- **External side-effect capabilities**: messaging sends, network calls, browser actions, third-party API calls.
+- **Privilege-sensitive capabilities**: shell commands that can modify system state, install software, or access sensitive paths.
+
+#### Approval Boundaries
+- Safe operations may execute without interruption when policy allows.
+- Dangerous operations require explicit approval (per command/per session/per always modes).
+- Messaging/gateway sessions enforce interactive approval prompts before executing sensitive terminal commands.
+- Child/subagent actions inherit parent constraints and may be further restricted.
+
+#### Approval Terminology
+- **Policy-gated approval**: an approval requirement determined by configured safety/approval policy.
+- **Interactive approval**: a real-time user prompt requiring explicit user confirmation.
+- **Denied by policy**: action is blocked without an approval path in the current context.
+
+#### Permission Matrix (Requirement-Level)
+
+| Actor / Context | Read-only | Local mutation | External side effects | Dangerous command execution |
+|---|---|---|---|---|
+| CLI user-approved session | Allowed | Allowed | Allowed | Policy-gated approval (interactive when required) |
+| Gateway user session | Allowed | Allowed | Allowed | Policy-gated approval with interactive confirmation |
+| Child delegated agent | Allowed (scoped) | Allowed (scoped) | Allowed (scoped) | Denied by policy or policy-gated by parent constraints |
+| Scheduled cron execution | Allowed (job-scoped) | Allowed (job-scoped) | Allowed (target-scoped) | Policy-gated approval per configured safety rules |
+
+#### Approval Flow Diagram
+
+```mermaid
+flowchart TD
+    TC[Tool/terminal action requested] --> RS[Risk scanner + policy evaluation]
+    RS --> D{Dangerous or restricted?}
+    D -- no --> EX[Execute action]
+    D -- yes --> AP[Request user approval]
+    AP --> G{Approved?}
+    G -- yes --> EX
+    G -- no --> BL[Block action + return safe error]
+    EX --> LG[Log/audit result]
+    BL --> LG
+```
+
 ---
 
 ## 14) Batch / Trajectory Generation and RL Research Capabilities
@@ -382,6 +459,29 @@ Each child returns structured summary, status, duration, usage metrics, and tool
 - **Synchronous RPC-style**: local tool handlers
 - **Asynchronous event-driven**: gateway platform adapters
 - **Protocol bridge**: ACP and MCP server/client boundaries
+
+### 17.5 End-to-End Data Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User as User/Trigger
+    participant Interface as CLI/Gateway/ACP
+    participant Agent as Agent Runtime
+    participant Model as LLM Provider
+    participant Tools as Tooling Layer
+    participant Store as Session/Memory/Cron Store
+
+    User->>Interface: Submit message or scheduled event
+    Interface->>Agent: Normalized request + session context
+    Agent->>Store: Read prior state/memory
+    Agent->>Model: Prompt + tool schemas
+    Model-->>Agent: Response (text and/or tool calls)
+    Agent->>Tools: Execute requested tools
+    Tools-->>Agent: Structured results
+    Agent->>Store: Persist messages, usage, outcomes
+    Agent-->>Interface: Final response payload
+    Interface-->>User: Delivered response/update
+```
 
 ---
 
